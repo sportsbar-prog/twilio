@@ -49,8 +49,7 @@ export TWILIO_AUTH_TOKEN="ak_PROD_your_kaphila_api_key"
 ### Step 3: Import and Use
 ```python
 # Import exactly like Twilio
-from twilio.rest import Client
-from twilio.twiml.voice_response import VoiceResponse
+from twilio import Client, VoiceResponse
 
 # Initialize client (automatically connects to 142.93.223.79:3000)
 client = Client()
