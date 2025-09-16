@@ -22,6 +22,120 @@ class TwiML:
         return str(self)
 
 
+class Gather:
+    """
+    Gather class for nesting verbs inside Gather element
+    100% compatible with Twilio's Gather nesting
+    
+    This class can be imported directly and used independently:
+        from twilio.twiml.voice_response import Gather
+    """
+    
+    def __init__(self, gather_element=None, call_sid: str = None, client=None, **kwargs):
+        if gather_element is not None:
+            # Used when created by VoiceResponse.gather()
+            self.gather_element = gather_element
+        else:
+            # Used when imported directly: gather = Gather(num_digits=1, action='/process')
+            self.gather_element = Element('Gather')
+            
+            # Set attributes from kwargs
+            if kwargs.get('num_digits'):
+                self.gather_element.set('numDigits', str(kwargs['num_digits']))
+            if kwargs.get('action'):
+                self.gather_element.set('action', kwargs['action'])
+            if kwargs.get('method', 'POST') != 'POST':
+                self.gather_element.set('method', kwargs['method'])
+            if kwargs.get('timeout', 5) != 5:
+                self.gather_element.set('timeout', str(kwargs['timeout']))
+            if kwargs.get('finish_on_key', '#') != '#':
+                self.gather_element.set('finishOnKey', kwargs['finish_on_key'])
+            if kwargs.get('input', 'dtmf') != 'dtmf':
+                self.gather_element.set('input', kwargs['input'])
+        
+        self._call_sid = call_sid
+        self._client = client
+    
+    def say(self, message: str, voice: str = None, language: str = None, loop: int = 1) -> 'Gather':
+        """
+        Add Say verb to Gather
+        
+        Args:
+            message (str): Text to speak
+            voice (str): Voice to use
+            language (str): Language code
+            loop (int): Number of loops
+            
+        Returns:
+            Gather: Self for method chaining
+        """
+        # Context-aware: make direct API call if possible
+        if self._call_sid and self._client:
+            try:
+                self._client.request('POST', '/gather', data={
+                    'callId': self._call_sid,
+                    'text': message,
+                    'numDigits': int(self.gather_element.get('numDigits', '1')),
+                    'timeout': int(self.gather_element.get('timeout', '5')) * 1000,
+                    'playTo': 'bridge'
+                })
+            except:
+                pass  # Fallback to TwiML
+        
+        # Add to TwiML
+        say_elem = SubElement(self.gather_element, 'Say')
+        if voice:
+            say_elem.set('voice', voice)
+        if language:
+            say_elem.set('language', language)
+        if loop != 1:
+            say_elem.set('loop', str(loop))
+        say_elem.text = message
+        
+        return self
+    
+    def play(self, url: str, loop: int = 1, digits: str = None) -> 'Gather':
+        """
+        Add Play verb to Gather
+        
+        Args:
+            url (str): Audio file URL
+            loop (int): Number of loops
+            digits (str): DTMF digits
+            
+        Returns:
+            Gather: Self for method chaining
+        """
+        play_elem = SubElement(self.gather_element, 'Play')
+        if loop != 1:
+            play_elem.set('loop', str(loop))
+        if digits:
+            play_elem.set('digits', digits)
+        play_elem.text = url
+        
+        return self
+    
+    def pause(self, length: int = 1) -> 'Gather':
+        """
+        Add Pause verb to Gather
+        
+        Args:
+            length (int): Pause duration in seconds
+            
+        Returns:
+            Gather: Self for method chaining
+        """
+        pause_elem = SubElement(self.gather_element, 'Pause')
+        if length != 1:
+            pause_elem.set('length', str(length))
+        
+        return self
+    
+    def __str__(self):
+        """Return XML string representation"""
+        return tostring(self.gather_element, encoding='unicode')
+
+
 class VoiceResponse(TwiML):
     """
     TwiML Voice Response - 100% compatible with Twilio's VoiceResponse
@@ -330,88 +444,5 @@ class VoiceResponse(TwiML):
         return self
 
 
-class Gather:
-    """
-    Gather class for nesting verbs inside Gather element
-    100% compatible with Twilio's Gather nesting
-    """
-    
-    def __init__(self, gather_element, call_sid: str = None, client = None):
-        self.gather_element = gather_element
-        self._call_sid = call_sid
-        self._client = client
-    
-    def say(self, message: str, voice: str = None, language: str = None, loop: int = 1) -> 'Gather':
-        """
-        Add Say verb to Gather
-        
-        Args:
-            message (str): Text to speak
-            voice (str): Voice to use
-            language (str): Language code
-            loop (int): Number of loops
-            
-        Returns:
-            Gather: Self for method chaining
-        """
-        # Context-aware: make direct API call if possible
-        if self._call_sid and self._client:
-            try:
-                self._client.request('POST', '/gather', data={
-                    'callId': self._call_sid,
-                    'text': message,
-                    'numDigits': int(self.gather_element.get('numDigits', '1')),
-                    'timeout': int(self.gather_element.get('timeout', '5')) * 1000,
-                    'playTo': 'bridge'
-                })
-            except:
-                pass  # Fallback to TwiML
-        
-        # Add to TwiML
-        say_elem = SubElement(self.gather_element, 'Say')
-        if voice:
-            say_elem.set('voice', voice)
-        if language:
-            say_elem.set('language', language)
-        if loop != 1:
-            say_elem.set('loop', str(loop))
-        say_elem.text = message
-        
-        return self
-    
-    def play(self, url: str, loop: int = 1, digits: str = None) -> 'Gather':
-        """
-        Add Play verb to Gather
-        
-        Args:
-            url (str): Audio file URL
-            loop (int): Number of loops
-            digits (str): DTMF digits
-            
-        Returns:
-            Gather: Self for method chaining
-        """
-        play_elem = SubElement(self.gather_element, 'Play')
-        if loop != 1:
-            play_elem.set('loop', str(loop))
-        if digits:
-            play_elem.set('digits', digits)
-        play_elem.text = url
-        
-        return self
-    
-    def pause(self, length: int = 1) -> 'Gather':
-        """
-        Add Pause verb to Gather
-        
-        Args:
-            length (int): Pause duration in seconds
-            
-        Returns:
-            Gather: Self for method chaining
-        """
-        pause_elem = SubElement(self.gather_element, 'Pause')
-        if length != 1:
-            pause_elem.set('length', str(length))
-        
-        return self
+# Export classes for direct import
+__all__ = ['VoiceResponse', 'Gather', 'TwiML']
